@@ -35,6 +35,9 @@ public class OAuth2AccessTokenRequestForm {
     private final String clientSecretProperty;
     private final String clientSecret;
 
+    private final String username;
+    private final String password;
+
     private OAuth2AccessTokenRequestForm(
         final String grantTypeProperty,
         final String grantType,
@@ -42,7 +45,9 @@ public class OAuth2AccessTokenRequestForm {
         final String clientIdProperty,
         final String clientId,
         final String clientSecretProperty,
-        final String clientSecret
+        final String clientSecret,
+        final String username,
+        final String password
     ) {
         this.grantTypeProperty = grantTypeProperty;
         this.grantType = grantType;
@@ -51,6 +56,8 @@ public class OAuth2AccessTokenRequestForm {
         this.clientId = clientId;
         this.clientSecretProperty = clientSecretProperty;
         this.clientSecret = clientSecret;
+        this.username = username;
+        this.password = password;
     }
 
     public String toBodyString() {
@@ -62,6 +69,13 @@ public class OAuth2AccessTokenRequestForm {
             stringJoiner
                 .add(encodeNameAndValue(clientIdProperty, clientId))
                 .add(encodeNameAndValue(clientSecretProperty, clientSecret));
+        }
+        if (username != null && password != null) {
+            // TODO: we might want to make this configurable in the future.
+            // For the moment the attribute names are hard-coded.
+            stringJoiner
+                    .add(encodeNameAndValue("username", username))
+                    .add(encodeNameAndValue("password", password));
         }
         return stringJoiner.toString();
     }
@@ -89,6 +103,9 @@ public class OAuth2AccessTokenRequestForm {
 
         private String clientSecretProperty;
         private String clientSecret;
+
+        private String username;
+        private String password;
 
         private Builder() {
         }
@@ -132,19 +149,33 @@ public class OAuth2AccessTokenRequestForm {
             Objects.requireNonNull(grantTypeProperty, "The grant type property is required");
             Objects.requireNonNull(grantType, "The grant type is required");
 
-            // Both of the credential properties need to be set
-            if (clientIdProperty != null || clientSecretProperty != null) {
-                Objects.requireNonNull(clientIdProperty, "The client id property is required");
-                Objects.requireNonNull(clientSecretProperty, "The client secret property is required");
+            if (grantType.equals("client_credentials")) {
+                // Both of the credential properties need to be set
+                if (clientIdProperty != null || clientSecretProperty != null) {
+                    Objects.requireNonNull(clientIdProperty, "The client id property is required");
+                    Objects.requireNonNull(clientSecretProperty, "The client secret property is required");
+                }
+                // Both of the credential values need to be set
+                if (clientId != null || clientSecret != null) {
+                    Objects.requireNonNull(clientId, "The client id is required");
+                    Objects.requireNonNull(clientSecret, "The client secret is required");
+                }
             }
-            // Both of the credential values need to be set
-            if (clientId != null || clientSecret != null) {
-                Objects.requireNonNull(clientId, "The client id is required");
-                Objects.requireNonNull(clientSecret, "The client secret is required");
+
+            if (grantType.equals("password")) {
+                // Both of the credential values need to be set
+                if (username != null || password != null) {
+                    Objects.requireNonNull(username, "With grant_type password, the username must be set.");
+                    Objects.requireNonNull(password, "With grant_type password, the password must be set. ");
+                }
+
             }
 
             return new OAuth2AccessTokenRequestForm(
-                grantTypeProperty, grantType, scope, clientIdProperty, clientId, clientSecretProperty, clientSecret);
+                grantTypeProperty, grantType, scope,
+                    clientIdProperty, clientId, clientSecretProperty, clientSecret,
+                    username, password
+            );
         }
 
     }

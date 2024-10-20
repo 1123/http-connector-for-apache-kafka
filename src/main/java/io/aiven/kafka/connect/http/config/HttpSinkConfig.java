@@ -63,6 +63,9 @@ public final class HttpSinkConfig extends AbstractConfig {
     private static final String OAUTH2_CLIENT_SCOPE_CONFIG = "oauth2.client.scope";
     private static final String OAUTH2_RESPONSE_TOKEN_PROPERTY_CONFIG = "oauth2.response.token.property";
 
+    private static final String OAUTH2_USERNAME_CONFIG = "oauth2.username";
+    private static final String OAUTH2_PASSWORD_CONFIG = "oauth2.password";
+
     private static final String BATCHING_GROUP = "Batching";
     private static final String BATCHING_ENABLED_CONFIG = "batching.enabled";
     private static final String BATCH_MAX_SIZE_CONFIG = "batch.max.size";
@@ -340,6 +343,30 @@ public final class HttpSinkConfig extends AbstractConfig {
                 List.of(OAUTH2_ACCESS_TOKEN_URL_CONFIG, OAUTH2_CLIENT_ID_CONFIG,
                         OAUTH2_CLIENT_AUTHORIZATION_MODE_CONFIG,
                         OAUTH2_CLIENT_SCOPE_CONFIG, OAUTH2_RESPONSE_TOKEN_PROPERTY_CONFIG)
+        );
+        configDef.define(
+                OAUTH2_USERNAME_CONFIG,
+                Type.STRING,
+                null,
+                ConfigDef.Importance.HIGH,
+                "When using the grant_type 'Password Credentials', this property holds the username for getting the access token.",
+                CONNECTION_GROUP,
+                groupCounter++,
+                ConfigDef.Width.LONG,
+                OAUTH2_USERNAME_CONFIG,
+                List.of()
+                );
+        configDef.define(
+                OAUTH2_PASSWORD_CONFIG,
+                Type.PASSWORD,
+                null,
+                ConfigDef.Importance.HIGH,
+                "When using the grant_type 'Password Credentials', this property holds the password for getting the access token.",
+                CONNECTION_GROUP,
+                groupCounter++,
+                ConfigDef.Width.LONG,
+                OAUTH2_PASSWORD_CONFIG,
+                List.of()
         );
         configDef.define(
                 OAUTH2_CLIENT_AUTHORIZATION_MODE_CONFIG,
@@ -634,21 +661,42 @@ public final class HttpSinkConfig extends AbstractConfig {
     }
 
     private void validateOAuth2Configuration() {
-        Stream.of(OAUTH2_ACCESS_TOKEN_URL_CONFIG, OAUTH2_GRANT_TYPE_PROP_CONFIG, OAUTH2_GRANT_TYPE_CONFIG,
-                  OAUTH2_CLIENT_ID_PROP_CONFIG, OAUTH2_CLIENT_ID_CONFIG, OAUTH2_CLIENT_SECRET_PROP_CONFIG)
-              .filter(configKey -> getString(configKey) == null || getString(configKey).isBlank())
-              .findFirst()
-              .ifPresent(missingConfiguration -> {
-                  throw new ConfigException(missingConfiguration, getString(missingConfiguration),
-                          "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = "
-                          +
-                          AuthorizationType.OAUTH2);
-              });
+        if (getString(OAUTH2_GRANT_TYPE_CONFIG).equals("client_credentials")) {
+            Stream.of(OAUTH2_ACCESS_TOKEN_URL_CONFIG, OAUTH2_GRANT_TYPE_PROP_CONFIG, OAUTH2_GRANT_TYPE_CONFIG,
+                            OAUTH2_CLIENT_ID_PROP_CONFIG, OAUTH2_CLIENT_ID_CONFIG, OAUTH2_CLIENT_SECRET_PROP_CONFIG)
+                    .filter(configKey -> getString(configKey) == null || getString(configKey).isBlank())
+                    .findFirst()
+                    .ifPresent(missingConfiguration -> {
+                        throw new ConfigException(missingConfiguration, getString(missingConfiguration),
+                                "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = "
+                                        +
+                                        AuthorizationType.OAUTH2);
+                    });
 
-        if (oauth2ClientSecret() == null || oauth2ClientSecret().value().isEmpty()) {
-            throw new ConfigException(OAUTH2_CLIENT_SECRET_CONFIG, oauth2ClientSecret(),
-                    "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = " + AuthorizationType.OAUTH2);
+            if (oauth2ClientSecret() == null || oauth2ClientSecret().value().isEmpty()) {
+                throw new ConfigException(OAUTH2_CLIENT_SECRET_CONFIG, oauth2ClientSecret(),
+                        "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = " + AuthorizationType.OAUTH2);
+            }
         }
+
+        if (getString(OAUTH2_GRANT_TYPE_CONFIG).equals("password")) {
+            Stream.of(OAUTH2_ACCESS_TOKEN_URL_CONFIG, OAUTH2_GRANT_TYPE_PROP_CONFIG, OAUTH2_GRANT_TYPE_CONFIG,
+                            OAUTH2_USERNAME_CONFIG)
+                    .filter(configKey -> getString(configKey) == null || getString(configKey).isBlank())
+                    .findFirst()
+                    .ifPresent(missingConfiguration -> {
+                        throw new ConfigException(missingConfiguration, getString(missingConfiguration),
+                                "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = "
+                                        + AuthorizationType.OAUTH2 + " and " + OAUTH2_GRANT_TYPE_CONFIG + " = password");
+                    });
+            if (oauth2Password() == null || oauth2Password().value().isEmpty()) {
+                throw new ConfigException(OAUTH2_PASSWORD_CONFIG, oauth2Password(),
+                        "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = " + AuthorizationType.OAUTH2
+                                + " and " + OAUTH2_GRANT_TYPE_CONFIG + " = password");
+            }
+        }
+
+
     }
 
     public final URI httpUri() {
@@ -794,4 +842,11 @@ public final class HttpSinkConfig extends AbstractConfig {
         System.out.println(configDef().toEnrichedRst());
     }
 
+    public String oauth2Username() {
+        return getString(OAUTH2_USERNAME_CONFIG);
+    }
+
+    public Password oauth2Password() {
+        return getPassword(OAUTH2_PASSWORD_CONFIG);
+    }
 }

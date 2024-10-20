@@ -16,6 +16,7 @@
 
 package io.aiven.kafka.connect.http.sender;
 
+import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
@@ -106,6 +107,66 @@ public class OAuth2AccessTokenHttpSenderTest extends HttpSenderTestBase {
         // Check the messages have been sent once
         messages.forEach(
             message -> bodyPublishers.verify(() -> HttpRequest.BodyPublishers.ofString(eq(message))));
+    }
+
+    @Test
+    void shouldBuildAccessTokenRequestForGrantTypePassword() throws IOException, InterruptedException {
+        // a good explanation of the difference between grant_type=password and grant_type=client_credentials
+        // is available at https://stackoverflow.com/a/34848956
+
+        // Kafka connectors should only be using grant_type=client_credentials.
+        // The implementation of the password grant_type is here to deal with legacy applications.
+        Map<String, String> map = Map.of(
+                "oauth2.grant.type", "password",
+                "http.url", "http://localhost:42",
+                "http.authorization.type", "oauth2",
+                "oauth2.access.token.url", "http://localhost:42/token",
+                "oauth2.username", "user1",
+                "oauth2.password", "s3cr3t");
+        final HttpSinkConfig config = new HttpSinkConfig(map);
+
+        // Mock the Client and Response
+        when(mockedClient.send(any(HttpRequest.class), any(BodyHandler.class))).thenReturn(mockedResponse);
+
+        // Create a spy on the HttpSender implementation to capture method's parameters
+        final var httpSender = Mockito.spy(new OAuth2AccessTokenHttpSender(config, mockedClient));
+        httpSender.call();
+
+        // Capture the RequestBuilder
+        final ArgumentCaptor<Builder> defaultHttpRequestBuilder = ArgumentCaptor.forClass(HttpRequest.Builder.class);
+        final List<String> messages =
+                List.of("grant_type=password");
+        verify(httpSender, atLeast(messages.size())).sendWithRetries(defaultHttpRequestBuilder.capture(),
+                any(HttpResponseHandler.class), anyInt());
+
+        final var expectedAuthHeader = "Basic " + Base64
+                .getEncoder()
+                .encodeToString("user1:s3cr3t".getBytes(StandardCharsets.UTF_8));
+        // Retrieve the builders and rebuild the HttpRequests to check the HttpRequest proper configuration
+        defaultHttpRequestBuilder
+                .getAllValues()
+                .stream()
+                .map(Builder::build)
+                .forEach(httpRequest -> {
+                    // Generic Assertions
+                    assertThat(httpRequest.uri()).isEqualTo(config.oauth2AccessTokenUri());
+                    assertThat(httpRequest.timeout())
+                            .isPresent()
+                            .get(as(InstanceOfAssertFactories.DURATION))
+                            .hasSeconds(config.httpTimeout());
+                    assertThat(httpRequest.method()).isEqualTo("POST");
+
+                    assertThat(httpRequest
+                            .headers()
+                            .firstValue(HttpRequestBuilder.HEADER_CONTENT_TYPE)).hasValue("application/x-www-form-urlencoded");
+                    assertThat(httpRequest
+                            .headers()
+                            .firstValue(HttpRequestBuilder.HEADER_AUTHORIZATION)).hasValue(expectedAuthHeader);
+                });
+
+        // Check the messages have been sent once
+        messages.forEach(
+                message -> bodyPublishers.verify(() -> HttpRequest.BodyPublishers.ofString(eq(message))));
     }
 
     @Test

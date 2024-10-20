@@ -71,9 +71,33 @@ class OAuth2AccessTokenHttpSender extends AbstractHttpSender implements HttpSend
                 .timeout(Duration.ofSeconds(config.httpTimeout()))
                 .header(HEADER_CONTENT_TYPE, HEADER_CONTENT_TYPE_FORM);
             if (config.oauth2AuthorizationMode() == HEADER) {
-                addClientIdAndSecretInRequestHeader(config, builder);
+                addAuthorizationHeader(config, builder);
             }
             return builder;
+        }
+
+        private void addAuthorizationHeader(final HttpSinkConfig config, final HttpRequest.Builder builder) {
+            if (config.oauth2GrantType().equals("client_credentials")) {
+                addClientIdAndSecretInRequestHeader(config, builder);
+                return;
+            }
+            if (config.oauth2GrantType().equals("password")) {
+                addUserameAndPasswordInRequestHeader(config, builder);
+                return;
+            }
+            throw new IllegalArgumentException("Unsupported grant type: " + config.oauth2GrantType());
+        }
+
+        private void addUserameAndPasswordInRequestHeader(
+                final HttpSinkConfig config, final HttpRequest.Builder builder
+        ) {
+            final var usernameAndPasswordBytes = (config.oauth2Username() + ":" + config
+                .oauth2Password()
+                .value()).getBytes(StandardCharsets.UTF_8);
+            final var usernameAndPasswordAuthHeader = "Basic " + Base64
+                .getEncoder()
+                .encodeToString(usernameAndPasswordBytes);
+            builder.header(HEADER_AUTHORIZATION, usernameAndPasswordAuthHeader);
         }
 
         private void addClientIdAndSecretInRequestHeader(
