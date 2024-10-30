@@ -9,4 +9,6 @@ module io.aiven.kafka.connect.http {
     // tooling
     requires org.slf4j;
     requires com.github.spotbugs.annotations;
+    requires org.apache.httpcomponents.httpcore;
+    requires org.apache.httpcomponents.httpmime;
 }

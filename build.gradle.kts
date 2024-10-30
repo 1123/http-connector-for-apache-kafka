@@ -121,6 +121,7 @@ dependencies {
     compileOnly("com.github.spotbugs:spotbugs-annotations:$spotbugsAnnotationsVersion")
     compileOnly("com.google.code.findbugs:jsr305:$jsr305Version")
 
+    implementation("org.apache.httpcomponents:httpmime:4.5.13")
     implementation("com.fasterxml.jackson.core:jackson-core:$jacksonVersion")
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("org.slf4j:slf4j-api:$slf4japiVersion")

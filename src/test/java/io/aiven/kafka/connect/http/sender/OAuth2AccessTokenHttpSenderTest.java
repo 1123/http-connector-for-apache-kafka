@@ -116,7 +116,7 @@ public class OAuth2AccessTokenHttpSenderTest extends HttpSenderTestBase {
 
         // Kafka connectors should only be using grant_type=client_credentials.
         // The implementation of the password grant_type is here to deal with legacy applications.
-        Map<String, String> map = Map.of(
+        final Map<String, String> map = Map.of(
                 "oauth2.grant.type", "password",
                 "http.url", "http://localhost:42",
                 "http.authorization.type", "oauth2",
@@ -158,7 +158,8 @@ public class OAuth2AccessTokenHttpSenderTest extends HttpSenderTestBase {
 
                     assertThat(httpRequest
                             .headers()
-                            .firstValue(HttpRequestBuilder.HEADER_CONTENT_TYPE)).hasValue("application/x-www-form-urlencoded");
+                            .firstValue(HttpRequestBuilder.HEADER_CONTENT_TYPE))
+                            .hasValue("application/x-www-form-urlencoded");
                     assertThat(httpRequest
                             .headers()
                             .firstValue(HttpRequestBuilder.HEADER_AUTHORIZATION)).hasValue(expectedAuthHeader);
@@ -166,7 +167,7 @@ public class OAuth2AccessTokenHttpSenderTest extends HttpSenderTestBase {
 
         // Check the messages have been sent once
         messages.forEach(
-                message -> bodyPublishers.verify(() -> HttpRequest.BodyPublishers.ofString(eq(message))));
+            message -> bodyPublishers.verify(() -> HttpRequest.BodyPublishers.ofString(eq(message))));
     }
 
     @Test

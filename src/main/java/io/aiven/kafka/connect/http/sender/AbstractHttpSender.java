@@ -21,12 +21,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.connect.errors.ConnectException;
-
 import io.aiven.kafka.connect.http.config.HttpSinkConfig;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.kafka.connect.errors.ConnectException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,9 +52,37 @@ abstract class AbstractHttpSender {
     }
 
     public final HttpResponse<String> send(final String body) {
+        if (config.sendAsFileUpload()) {
+            try {
+                return sendAsFileUpload(body);
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
         final var requestBuilder =
                 httpRequestBuilder.build(config).POST(HttpRequest.BodyPublishers.ofString(body));
         return sendWithRetries(requestBuilder, HttpResponseHandler.ON_HTTP_ERROR_RESPONSE_HANDLER,
+                config.maxRetries());
+    }
+
+    static HttpEntity fileMultiPartEntity(final String body) {
+        return MultipartEntityBuilder.create()
+                .addPart("file",
+                        new StringBodyWithFileName(body, "message.txt",
+                                ContentType.create("application/x-www-form-urlencoded", StandardCharsets.UTF_8)))
+                .build();
+    }
+
+    private HttpResponse<String> sendAsFileUpload(final String body) throws IOException {
+        final HttpEntity entity = fileMultiPartEntity(body);
+        final var requestBuilderWithPayload = httpRequestBuilder.build(config)
+                .header("Content-Type", entity.getContentType().getValue())
+                .POST(
+                        HttpRequest.BodyPublishers.ofString(
+                                new String(entity.getContent().readAllBytes(), StandardCharsets.UTF_8)
+                        )
+                );
+        return sendWithRetries(requestBuilderWithPayload, HttpResponseHandler.ON_HTTP_ERROR_RESPONSE_HANDLER,
                 config.maxRetries());
     }
 
@@ -87,5 +119,4 @@ abstract class AbstractHttpSender {
         log.error("Sending failed and no retries remain, stopping");
         throw new ConnectException("Sending failed and no retries remain, stopping");
     }
-
 }

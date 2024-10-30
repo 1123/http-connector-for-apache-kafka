@@ -50,6 +50,8 @@ public final class HttpSinkConfig extends AbstractConfig {
     private static final String HTTP_HEADERS_ADDITIONAL = "http.headers.additional";
     private static final String HTTP_HEADERS_ADDITIONAL_DELIMITER = ":";
 
+    private static final String SEND_AS_FILE_UPLOAD_CONFIG = "send.as.file.upload";
+
     public static final String KAFKA_RETRY_BACKOFF_MS_CONFIG = "kafka.retry.backoff.ms";
 
     private static final String OAUTH2_ACCESS_TOKEN_URL_CONFIG = "oauth2.access.token.url";
@@ -146,6 +148,18 @@ public final class HttpSinkConfig extends AbstractConfig {
             groupCounter++,
             ConfigDef.Width.SHORT,
             HTTP_SSL_TRUST_ALL_CERTIFICATES
+        );
+
+        configDef.define(
+                SEND_AS_FILE_UPLOAD_CONFIG,
+                Type.BOOLEAN,
+                false,
+                ConfigDef.Importance.HIGH,
+                "Whether to send the data as a file upload. Defaults to false.",
+                CONNECTION_GROUP,
+                groupCounter++,
+                ConfigDef.Width.SHORT,
+                SEND_AS_FILE_UPLOAD_CONFIG
         );
 
         configDef.define(
@@ -349,19 +363,20 @@ public final class HttpSinkConfig extends AbstractConfig {
                 Type.STRING,
                 null,
                 ConfigDef.Importance.HIGH,
-                "When using the grant_type 'Password Credentials', this property holds the username for getting the access token.",
+                "When using the grant_type 'Password Credentials', "
+                        + "this property holds the username for getting the access token.",
                 CONNECTION_GROUP,
                 groupCounter++,
                 ConfigDef.Width.LONG,
                 OAUTH2_USERNAME_CONFIG,
-                List.of()
-                );
+                List.of());
         configDef.define(
                 OAUTH2_PASSWORD_CONFIG,
                 Type.PASSWORD,
                 null,
                 ConfigDef.Importance.HIGH,
-                "When using the grant_type 'Password Credentials', this property holds the password for getting the access token.",
+                "When using the grant_type 'Password Credentials', "
+                        + "this property holds the password for getting the access token.",
                 CONNECTION_GROUP,
                 groupCounter++,
                 ConfigDef.Width.LONG,
@@ -534,7 +549,7 @@ public final class HttpSinkConfig extends AbstractConfig {
                             return;
                         }
                         assert value instanceof Long;
-                        final var longValue = (Long) value;
+                        final long longValue = (Long) value;
                         if (longValue < 0) {
                             throw new ConfigException(name, value, "Value must be at least 0");
                         } else if (longValue > MAXIMUM_BACKOFF_POLICY) {
@@ -687,7 +702,8 @@ public final class HttpSinkConfig extends AbstractConfig {
                     .ifPresent(missingConfiguration -> {
                         throw new ConfigException(missingConfiguration, getString(missingConfiguration),
                                 "Must be present when " + HTTP_HEADERS_AUTHORIZATION_CONFIG + " = "
-                                        + AuthorizationType.OAUTH2 + " and " + OAUTH2_GRANT_TYPE_CONFIG + " = password");
+                                        + AuthorizationType.OAUTH2 + " and "
+                                        + OAUTH2_GRANT_TYPE_CONFIG + " = password");
                     });
             if (oauth2Password() == null || oauth2Password().value().isEmpty()) {
                 throw new ConfigException(OAUTH2_PASSWORD_CONFIG, oauth2Password(),
@@ -848,5 +864,9 @@ public final class HttpSinkConfig extends AbstractConfig {
 
     public Password oauth2Password() {
         return getPassword(OAUTH2_PASSWORD_CONFIG);
+    }
+
+    public boolean sendAsFileUpload() {
+        return getBoolean(SEND_AS_FILE_UPLOAD_CONFIG);
     }
 }

@@ -145,6 +145,16 @@ public class OAuth2AccessTokenRequestForm {
             return this;
         }
 
+        public Builder withUsername(final String username) {
+            this.username = username;
+            return this;
+        }
+
+        public Builder withPassword(final String password) {
+            this.password = password;
+            return this;
+        }
+
         public OAuth2AccessTokenRequestForm build() {
             Objects.requireNonNull(grantTypeProperty, "The grant type property is required");
             Objects.requireNonNull(grantType, "The grant type is required");
